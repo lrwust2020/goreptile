@@ -36,3 +36,36 @@ type SchedSummary interface {
 	Detail() string               //摘要详细信息
 	Same(other SchedSummary) bool //是否与另一个摘要信息相同
 }
+
+type myScheduler struct {
+}
+
+func (this *myScheduler) Start(channelLen uint,
+	poolSize uint32,
+	crawlDepth uint32,
+	httpClientGenerator GenHttpClient,
+	respParsers []analyzer.ParseResponse,
+	itemProcessors []itempipeline.ProcessItem,
+	firstHttpReq *http.Request) (err error) {
+	panic("implement me")
+}
+
+func (this *myScheduler) Stop() bool {
+	panic("implement me")
+}
+
+func (this *myScheduler) Running() bool {
+	panic("implement me")
+}
+
+func (this *myScheduler) ErrorChan() <-chan error {
+	panic("implement me")
+}
+
+func (this *myScheduler) Idle() bool {
+	panic("implement me")
+}
+
+func (this *myScheduler) Summary(prefix string) SchedSummary {
+	panic("implement me")
+}
