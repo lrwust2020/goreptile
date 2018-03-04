@@ -26,10 +26,10 @@ func (this *Request) HttpReq() *http.Request {
 func (this *Request) Depth() uint32 {
 	return this.depth
 }
+
 func (this *Request) Valid() bool {
 	return this.httpReq != nil && this.httpReq.URL != nil
 }
-
 
 //响应
 type Response struct {
@@ -54,7 +54,6 @@ func (this *Response) Depth() uint32 {
 func (this *Response) Valid() bool {
 	return this.httpResp != nil && this.httpResp.Body != nil
 }
-
 
 //条目
 type Item map[string]interface{}
@@ -111,3 +110,5 @@ const (
 func NewCrawlerError(errType ErrorType, errMsg string) CrawlerError {
 	return &myCrawlerError{errMsg: errMsg, errType: errType}
 }
+
+
