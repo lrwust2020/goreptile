@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"fmt"
 	"sync"
 )
 
@@ -64,15 +65,24 @@ func (this *myStopSign) Deal(code string) {
 }
 
 func (this *myStopSign) DealCount() uint32 {
-	panic("implement me")
+	var count = len(this.dealCountMay)
+	return uint32(count)
 }
 
 func (this *myStopSign) DealTotal() uint32 {
-	panic("implement me")
+	var count uint32
+	for _, v := range this.dealCountMay {
+		count += v
+	}
+	return count
 }
 
+var stopSignSummaryTemplate = "signed: %v," +
+	"dealCount: %d," +
+	"dealTotal: %d"
+
 func (this *myStopSign) Summary() string {
-	panic("implement me")
+	return fmt.Sprintf(stopSignSummaryTemplate, this.signed, this.DealCount(), this.DealTotal())
 }
 
 func NewStopSign() StopSign {
