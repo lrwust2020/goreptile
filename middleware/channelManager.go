@@ -1,10 +1,10 @@
 package middleware
 
 import (
-	"github.com/fmyxyz/goreptile/base"
 	"errors"
-	"sync"
 	"fmt"
+	"github.com/fmyxyz/goreptile/base"
+	"sync"
 )
 
 //通道管器接口

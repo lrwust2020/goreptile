@@ -110,5 +110,3 @@ const (
 func NewCrawlerError(errType ErrorType, errMsg string) CrawlerError {
 	return &myCrawlerError{errMsg: errMsg, errType: errType}
 }
-
-

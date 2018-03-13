@@ -1,9 +1,9 @@
 package middleware
 
 import (
-	"sync/atomic"
-	"sync"
 	"math"
+	"sync"
+	"sync/atomic"
 )
 
 type IdGenertor interface {

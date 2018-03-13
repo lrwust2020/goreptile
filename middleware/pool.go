@@ -1,9 +1,9 @@
 package middleware
 
 import (
-	"reflect"
 	"errors"
 	"fmt"
+	"reflect"
 	"sync"
 )
 
