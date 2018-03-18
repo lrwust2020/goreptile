@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/fmyxyz/goreptile/analyzer"
+	"github.com/fmyxyz/goreptile/base"
 	"github.com/fmyxyz/goreptile/downloader"
 	"github.com/fmyxyz/goreptile/itempipeline"
 	"github.com/fmyxyz/goreptile/middleware"
@@ -20,8 +21,8 @@ func generateAnalyzerPool(poolSize uint32) (analyzer.AnalyzerPool, error) {
 	}
 	return analyzer.NewAnalyzerPool(poolSize, gen)
 }
-func generateChannelManager(channelLen uint) middleware.ChannelManager {
-	return middleware.NewChannelManager(channelLen)
+func generateChannelManager(channelArgs base.ChannelArgs) middleware.ChannelManager {
+	return middleware.NewChannelManager(channelArgs)
 }
 
 func generatePageDownloadPool(poolSize uint32, genHttpClient GenHttpClient) (downloader.PageDownloaderPool, error) {

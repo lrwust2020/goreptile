@@ -2,6 +2,8 @@ package scheduler
 
 import (
 	"bytes"
+	"fmt"
+	"github.com/fmyxyz/goreptile/base"
 )
 
 type SchedSummary interface {
@@ -11,10 +13,12 @@ type SchedSummary interface {
 }
 
 type mySchedSummary struct {
-	prefix     string
-	running    uint32
-	poolSize   uint32
-	channelLen uint
+	prefix  string
+	running uint32
+
+	channelArgs  base.ChannelArgs
+	poolBaseArgs base.PoolBaseArgs
+
 	crawlDepth uint32
 
 	chanmanSummary      string
@@ -32,15 +36,45 @@ type mySchedSummary struct {
 }
 
 func (this *mySchedSummary) String() string {
-	panic("implement me")
+	return this.getSummary(false)
 }
 
 func (this *mySchedSummary) Detail() string {
-	panic("implement me")
+	return this.getSummary(true)
 }
 
 func (this *mySchedSummary) Same(other SchedSummary) bool {
-	panic("implement me")
+	if other == nil {
+
+		return false
+	}
+	otherSs, ok := interface{}(other).(*mySchedSummary)
+	if !ok {
+		return false
+	}
+
+	if this.running != otherSs.running ||
+		this.poolBaseArgs.AnalyzerPoolSize() != otherSs.poolBaseArgs.AnalyzerPoolSize() ||
+		this.poolBaseArgs.PageDownloaderPoolSize() != otherSs.poolBaseArgs.PageDownloaderPoolSize() ||
+		this.channelArgs.ErrorChanLen() != otherSs.channelArgs.ErrorChanLen() ||
+		this.channelArgs.ItemChanLen() != otherSs.channelArgs.ItemChanLen() ||
+		this.channelArgs.RespChanLen() != otherSs.channelArgs.RespChanLen() ||
+		this.channelArgs.ReqChanLen() != otherSs.channelArgs.ReqChanLen() ||
+		this.crawlDepth != otherSs.crawlDepth ||
+		this.chanmanSummary != otherSs.chanmanSummary ||
+		this.reqCacheSummary != otherSs.reqCacheSummary ||
+		this.itemPipelineSummary != otherSs.itemPipelineSummary ||
+		this.stopSignSummary != otherSs.stopSignSummary ||
+		this.dlPoolLen != otherSs.dlPoolLen ||
+		this.dlPoolCap != otherSs.dlPoolCap ||
+		this.analyzerPoolLen != otherSs.analyzerPoolLen ||
+		this.analyzerPoolCap != otherSs.analyzerPoolCap ||
+		this.urlCount != otherSs.urlCount {
+		return false
+	} else {
+		return true
+	}
+
 }
 
 func NewSchedSummary(sched *myScheduler, prefix string) SchedSummary {
@@ -64,8 +98,8 @@ func NewSchedSummary(sched *myScheduler, prefix string) SchedSummary {
 	return &mySchedSummary{
 		prefix:              prefix,
 		running:             sched.running,
-		poolSize:            sched.poolSize,
-		channelLen:          sched.channelLen,
+		poolBaseArgs:        sched.poolBaseArgs,
+		channelArgs:         sched.channelArgs,
 		crawlDepth:          sched.crawlDepth,
 		chanmanSummary:      sched.chanman.Summary(),
 		reqCacheSummary:     sched.reqCache.summary(),
@@ -78,4 +112,39 @@ func NewSchedSummary(sched *myScheduler, prefix string) SchedSummary {
 		urlDetail:           urlDetail,
 		stopSignSummary:     sched.stopSign.Summary(),
 	}
+}
+
+func (this *mySchedSummary) getSummary(detail bool) string {
+	var template = this.prefix + "Running :%v \n" +
+		this.prefix + "Pool base size args :%s \n" +
+		this.prefix + "Channel args :%s \n" +
+		this.prefix + "Crawl depth :%d \n" +
+		this.prefix + "Channels manager :%s \n" +
+		this.prefix + "Request cache :%s \n" +
+		this.prefix + "Downloader pool :%d/%d \n" +
+		this.prefix + "Analyzer pool :%d/%d \n" +
+		this.prefix + "Item pipeline :%s \n" +
+		this.prefix + "Url(%d) :%s \n" +
+		this.prefix + "Stop sign :%s \n"
+	return fmt.Sprintf(template,
+		func() bool { return this.running == 1 }(),
+		this.poolBaseArgs.String(),
+		this.channelArgs.String(),
+		this.crawlDepth,
+		this.chanmanSummary,
+		this.reqCacheSummary,
+		this.dlPoolLen, this.dlPoolCap,
+		this.analyzerPoolLen, this.analyzerPoolCap,
+		this.itemPipelineSummary,
+		this.urlCount,
+		func() string {
+			if detail {
+				return this.urlDetail
+			} else {
+				return "<concealed>\n"
+			}
+		}(),
+		this.stopSignSummary,
+	)
+
 }

@@ -12,14 +12,15 @@ import (
 	"net/http"
 	"os"
 	"strings"
+	//"sync"
 	"sync/atomic"
 	"time"
 )
 
 type Scheduler interface {
 	//启动调度器
-	Start(channelLen uint,
-		poolSize uint32,
+	Start(channelArgs base.ChannelArgs,
+		poolBaseArgs base.PoolBaseArgs,
 		crawlDepth uint32,
 		httpClientGenerator GenHttpClient,
 		respParsers []analyzer.ParseResponse,
@@ -42,8 +43,9 @@ type Scheduler interface {
 type GenHttpClient func() *http.Client
 
 type myScheduler struct {
-	poolSize      uint32 //池大小
-	channelLen    uint   //通道容量
+	channelArgs  base.ChannelArgs
+	poolBaseArgs base.PoolBaseArgs
+
 	crawlDepth    uint32 //深度
 	primaryDomain string //主域名
 
@@ -58,6 +60,8 @@ type myScheduler struct {
 	reqCache requestCache //请求缓存
 
 	urlMap map[string]bool //已请求的URL
+
+	//wg sync.WaitGroup
 }
 
 func NewScheduler() Scheduler {
@@ -67,10 +71,10 @@ func NewScheduler() Scheduler {
 	}
 }
 
-var logger = log.New(os.Stdout, "scheduler", log.LstdFlags)
+var logger = log.New(os.Stdout, "scheduler:", log.LstdFlags)
 
-func (this *myScheduler) Start(channelLen uint,
-	poolSize uint32,
+func (this *myScheduler) Start(channelArgs base.ChannelArgs,
+	poolBaseArgs base.PoolBaseArgs,
 	crawlDepth uint32,
 	httpClientGenerator GenHttpClient,
 	respParsers []analyzer.ParseResponse,
@@ -87,28 +91,29 @@ func (this *myScheduler) Start(channelLen uint,
 		return errors.New("The Scheduler has bean started!\n")
 	}
 	atomic.StoreUint32(&this.running, 1)
-	if channelLen == 0 {
+
+	if err := channelArgs.Check(); err != nil {
 		return errors.New("The channel max length(capacity) can not be 0!\n")
 	}
-	this.channelLen = channelLen
-	if poolSize == 0 {
+	this.channelArgs = channelArgs
+	if err := poolBaseArgs.Check(); err != nil {
 		return errors.New("The pool size can not be 0!\n")
 	}
-	this.poolSize = poolSize
+	this.poolBaseArgs = poolBaseArgs
 	this.crawlDepth = crawlDepth
 
-	this.chanman = generateChannelManager(this.channelLen)
+	this.chanman = generateChannelManager(this.channelArgs)
 
 	if httpClientGenerator == nil {
 		return errors.New("The http client generator list is ivalid!")
 	}
-	dlpool, err := generatePageDownloadPool(this.poolSize, httpClientGenerator)
+	dlpool, err := generatePageDownloadPool(this.poolBaseArgs.PageDownloaderPoolSize(), httpClientGenerator)
 	if err != nil {
 		errMsg := fmt.Sprintf("Occur error when get page downloader pool:%s\n", err)
 		return errors.New(errMsg)
 	}
 	this.dlpool = dlpool
-	analyzerPool, err := generateAnalyzerPool(this.poolSize)
+	analyzerPool, err := generateAnalyzerPool(this.poolBaseArgs.AnalyzerPoolSize())
 	if err != nil {
 		errMsg := fmt.Sprintf("Occur error when get analyzer pool:%s\n", err)
 		return errors.New(errMsg)
@@ -133,7 +138,8 @@ func (this *myScheduler) Start(channelLen uint,
 	}
 
 	this.urlMap = make(map[string]bool)
-
+	//this.wg.Add(4)
+	//defer this.wg.Wait()
 	this.startDownlaoding()
 	this.activateAnalyzers(respParsers)
 	this.openItemPipeLine()
@@ -155,6 +161,7 @@ func (this *myScheduler) Start(channelLen uint,
 
 func (this *myScheduler) schedule(interval time.Duration) {
 	go func() {
+		//defer this.wg.Done()
 		for {
 			remainder := cap(this.getReqChan()) - len(this.getReqChan())
 			var temp *base.Request
@@ -164,7 +171,7 @@ func (this *myScheduler) schedule(interval time.Duration) {
 					return
 				}
 				this.getReqChan() <- *temp
-				remainder --
+				remainder--
 			}
 			time.Sleep(interval)
 			if this.stopSign.Signed() {
@@ -177,6 +184,7 @@ func (this *myScheduler) schedule(interval time.Duration) {
 
 func (this *myScheduler) openItemPipeLine() {
 	go func() {
+		//defer this.wg.Done()
 		this.itempipeline.SetFailFast(true)
 		code := ITEMPIPELINE_CODE
 		for item := range this.getITemChan() {
@@ -241,6 +249,7 @@ const (
 
 func (this *myScheduler) startDownlaoding() {
 	go func() {
+		//defer this.wg.Done()
 		for {
 			req, ok := <-this.getReqChan()
 			if !ok {
@@ -321,6 +330,7 @@ func (this *myScheduler) download(req base.Request) {
 
 func (this *myScheduler) activateAnalyzers(respParsers []analyzer.ParseResponse) {
 	go func() {
+		//defer this.wg.Done()
 		for {
 			resp, ok := <-this.getRespChan()
 			if !ok {

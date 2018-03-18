@@ -10,14 +10,13 @@ import (
 //通道管器接口
 type ChannelManager interface {
 	// 初始化
-	Init(channelLen uint, reset bool) bool
+	Init(channelArgs base.ChannelArgs, reset bool) bool
 	//关闭
 	Close() bool
 	ReqChan() (chan base.Request, error)
 	RespChan() (chan base.Response, error)
 	ItemChan() (chan base.Item, error)
 	ErrorChan() (chan error, error)
-	ChannelLen() uint
 	//管道管理器状态
 	Status() ChannelManagerStatus
 	Summary() string
@@ -32,12 +31,14 @@ const (
 )
 
 type myChannelManager struct {
-	reqCh      chan base.Request
-	respCh     chan base.Response
-	itemCh     chan base.Item
-	errorCh    chan error
-	channelLen uint
-	status     ChannelManagerStatus
+	reqCh   chan base.Request
+	respCh  chan base.Response
+	itemCh  chan base.Item
+	errorCh chan error
+
+	channelArgs base.ChannelArgs
+
+	status ChannelManagerStatus
 
 	rwMutex sync.RWMutex
 }
@@ -45,17 +46,14 @@ type myChannelManager struct {
 var defaultChanLen uint = 64
 
 //创建通道管理器
-func NewChannelManager(channelLen uint) ChannelManager {
-	if channelLen == 0 {
-		channelLen = defaultChanLen
-	}
+func NewChannelManager(channelArgs base.ChannelArgs) ChannelManager {
 	var chanman = &myChannelManager{}
-	chanman.Init(channelLen, true)
+	chanman.Init(channelArgs, true)
 	return chanman
 }
 
-func (this *myChannelManager) Init(channelLen uint, reset bool) bool {
-	if channelLen == 0 {
+func (this *myChannelManager) Init(channelArgs base.ChannelArgs, reset bool) bool {
+	if err := channelArgs.Check(); err != nil {
 		panic(errors.New("The channel length is invalid!"))
 	}
 
@@ -65,11 +63,11 @@ func (this *myChannelManager) Init(channelLen uint, reset bool) bool {
 	if this.status == CHANNEL_MANAGER_STATUS_INITIALIZED && !reset {
 		return false
 	}
-	this.channelLen = channelLen
-	this.reqCh = make(chan base.Request, channelLen)
-	this.respCh = make(chan base.Response, channelLen)
-	this.itemCh = make(chan base.Item, channelLen)
-	this.errorCh = make(chan error, channelLen)
+	this.channelArgs = channelArgs
+	this.reqCh = make(chan base.Request, channelArgs.ReqChanLen())
+	this.respCh = make(chan base.Response, channelArgs.RespChanLen())
+	this.itemCh = make(chan base.Item, channelArgs.ItemChanLen())
+	this.errorCh = make(chan error, channelArgs.ErrorChanLen())
 	this.status = CHANNEL_MANAGER_STATUS_INITIALIZED
 	return true
 }
@@ -140,10 +138,6 @@ func (this *myChannelManager) ErrorChan() (chan error, error) {
 		return nil, err
 	}
 	return this.errorCh, nil
-}
-
-func (this *myChannelManager) ChannelLen() uint {
-	return this.channelLen
 }
 
 func (this *myChannelManager) Status() ChannelManagerStatus {
