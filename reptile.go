@@ -19,27 +19,31 @@ import (
 )
 
 func main() {
-	var channelArgs = base.NewChannelArgs(10, 10, 10, 10)
+	scheduler := sched.NewScheduler()
 
+	interverNs := 10 * time.Millisecond
+	var maxIdleCount uint = 10000
+
+	checkChan := tool.Monitoring(
+		scheduler,
+		interverNs,
+		maxIdleCount,
+		true,
+		true,
+		record)
+
+	var channelArgs = base.NewChannelArgs(10, 10, 10, 10)
 	var poolBaseArgs = base.NewPoolBaseArgs(3, 3)
-	var crawlDepth uint32 = 1
+	var crawlDepth uint32 = 10
 	var httpClientGennerator = genHttpClien
 	var respParsers = getResponseParsers()
 	var itemProcessors = gerItemProcessors()
-
 	var startUrl = "https://www.csdn.net/"
 	firstHttpReq, err := http.NewRequest("GET", startUrl, nil)
 	if err != nil {
 		logger.Println(err)
 		return
 	}
-
-	scheduler := sched.NewScheduler()
-
-	interverNs := 10 * time.Millisecond
-	var maxIdleCount uint = 1000
-	checkChan := tool.Monitoring(scheduler, interverNs, maxIdleCount, true, false, record)
-
 	//go func() {
 	scheduler.Start(
 		channelArgs,
@@ -62,13 +66,13 @@ func record(level byte, content string) {
 	}
 	switch level {
 	case 0:
-		logger.SetPrefix("info")
+		logger.SetPrefix("[info]")
 		logger.Println(content)
 	case 1:
-		logger.SetPrefix("warn")
+		logger.SetPrefix("[warn]")
 		logger.Println(content)
 	case 2:
-		logger.SetPrefix("info")
+		logger.SetPrefix("[error]")
 		logger.Println(content)
 	}
 }
@@ -91,6 +95,17 @@ func processItem(item base.Item) (result base.Item, err error) {
 	if _, ok := result["number"]; !ok {
 		result["number"] = len(result)
 	}
+
+	f, err := os.Open("F:/tmp/a.txt")
+	if err != nil {
+		f, _ = os.Create("F:/tmp/a.txt")
+	}
+	defer f.Close()
+	for k, v := range result {
+		f.WriteString(fmt.Sprint("map[", k, "]", v, "\n"))
+		f.WriteString(fmt.Sprint("------------------------------------------"))
+	}
+
 	time.Sleep(10 * time.Millisecond)
 	return result, nil
 }
@@ -113,12 +128,12 @@ func parserForATag(httpResp *http.Response, respDepth uint32) ([]base.Data, []er
 		return nil, []error{err}
 	}
 	var reqUrl *url.URL = httpResp.Request.URL
+	record(0, "processing url:"+reqUrl.String())
 	var httpRespBody io.ReadCloser = httpResp.Body
 	defer func() {
 		if httpRespBody != nil {
 			httpRespBody.Close()
 		}
-
 	}()
 	var dataList = make([]base.Data, 0)
 	var errs = make([]error, 0)

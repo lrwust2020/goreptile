@@ -14,8 +14,7 @@ func Monitoring(
 	maxIdleCount uint,
 	autoStop bool,
 	detailSummary bool,
-	record Record,
-) <-chan uint64 {
+	record Record) <-chan uint64 {
 	if scheduler == nil {
 		panic(errors.New("The Scheduler is invalid!"))
 	}
@@ -28,7 +27,9 @@ func Monitoring(
 	stopNotifier := make(chan byte, 1)
 
 	reportError(scheduler, record, stopNotifier)
+
 	recordSummary(scheduler, detailSummary, record, stopNotifier)
+
 	checkCountChan := make(chan uint64, 2)
 
 	checkStatus(
@@ -38,8 +39,7 @@ func Monitoring(
 		autoStop,
 		checkCountChan,
 		record,
-		stopNotifier,
-	)
+		stopNotifier)
 
 	return checkCountChan
 }
@@ -48,9 +48,9 @@ func checkStatus(
 	intervalNs time.Duration,
 	maxIdleCount uint,
 	autoStop bool,
-	checkCountChan chan uint64,
+	checkCountChan chan<- uint64,
 	record Record,
-	stopNotifier chan byte,
+	stopNotifier chan<- byte,
 ) {
 	var checkCount uint64
 	go func() {
@@ -59,6 +59,7 @@ func checkStatus(
 			stopNotifier <- 2
 			checkCountChan <- checkCount
 		}()
+		waitForSchedulerStart(scheduler)
 		var idleCount uint
 		var firstIdleTime time.Time
 		for {
@@ -87,20 +88,23 @@ func checkStatus(
 							idleCount = 0
 						}
 					}
-				} else {
-					if idleCount > 0 {
-						idleCount = 0
-					}
 				}
-				checkCount++
-				time.Sleep(intervalNs)
+			} else {
+				if idleCount > 0 {
+					idleCount = 0
+				}
 			}
+			checkCount++
+			time.Sleep(intervalNs)
 		}
-
 	}()
 }
-func reportError(scheduler sched.Scheduler, record Record, stopNotifier <-chan byte) {
+func reportError(
+	scheduler sched.Scheduler,
+	record Record,
+	stopNotifier <-chan byte) {
 	go func() {
+
 		waitForSchedulerStart(scheduler)
 		for {
 			select {
@@ -128,8 +132,14 @@ func waitForSchedulerStart(scheduler sched.Scheduler) {
 		time.Sleep(time.Millisecond)
 	}
 }
-func recordSummary(scheduler sched.Scheduler, detailSummary bool, record Record, stopNotifier <-chan byte) {
+func recordSummary(
+	scheduler sched.Scheduler,
+	detailSummary bool,
+	record Record,
+	stopNotifier <-chan byte) {
 	go func() {
+		waitForSchedulerStart(scheduler)
+
 		var recordCount uint64 = 1
 		var startTime = time.Now()
 		var prevSchedSummary sched.SchedSummary

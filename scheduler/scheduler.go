@@ -93,11 +93,11 @@ func (this *myScheduler) Start(channelArgs base.ChannelArgs,
 	atomic.StoreUint32(&this.running, 1)
 
 	if err := channelArgs.Check(); err != nil {
-		return errors.New("The channel max length(capacity) can not be 0!\n")
+		return err
 	}
 	this.channelArgs = channelArgs
 	if err := poolBaseArgs.Check(); err != nil {
-		return errors.New("The pool size can not be 0!\n")
+		return err
 	}
 	this.poolBaseArgs = poolBaseArgs
 	this.crawlDepth = crawlDepth
